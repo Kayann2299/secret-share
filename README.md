@@ -1,67 +1,69 @@
-# SecretShare — Plataforma Cloud-Native para Partilha Segura de Segredos
+# SecretShare — Cloud-Native Platform for Secure Secret Sharing
 
-> Trabalho 2 — Computação Distribuída | LEI | ISMAT | 2025/2026
+> **Assignment 2 — Distributed Computing | BSc in Computer Engineering (LEI) | ISMAT | 2025/2026**
 
-## Arquitetura
+## Architecture
 
-```
+```text
 ┌─────────────┐      ┌─────────────┐      ┌─────────────┐
 │   Frontend  │      │   Backend   │      │    Redis    │
-│  (nginx)    │----->│   (Flask)   │----->│  (stateful) │
-│  porta 80   │      │  porta 5000 │      │  porta 6379 │
+│   (nginx)   │----->│   (Flask)   │----->│  (stateful) │
+│  port 80    │      │  port 5000  │      │  port 6379  │
 └─────────────┘      └─────────────┘      └─────────────┘
-    stateless           stateless           stateful
+    stateless            stateless             stateful
 ```
 
-**Zero-knowledge:** o segredo é cifrado com OpenPGP **no browser** antes de ser enviado.
-O servidor armazena apenas o ciphertext — nunca vê o conteúdo em claro.
+**Zero-knowledge:** Secrets are encrypted using OpenPGP **in the browser** before being sent to the server.
 
-## Stack
+The server stores only the ciphertext and never sees the plaintext secret.
 
-| Componente | Tecnologia | Razão |
+## Technology Stack
+
+| Component | Technology | Purpose |
 |---|---|---|
-| Frontend | HTML/JS + OpenPGP.js | Cifragem no cliente |
-| Backend | Flask + Gunicorn | Leve, fácil de containerizar |
-| Persistência | Redis | TTL nativo, expiração automática |
-| Proxy | Nginx | Reverse proxy + security headers |
-| Container | Docker | Isolamento e reprodutibilidade |
-| Orquestração | Kubernetes | Escalabilidade e resiliência |
+| Frontend | HTML/JavaScript + OpenPGP.js | Client-side encryption |
+| Backend | Flask + Gunicorn | Lightweight, easy-to-containerize API |
+| Persistence | Redis | Native TTL support and automatic expiration |
+| Proxy | Nginx | Reverse proxy and security headers |
+| Containerization | Docker | Isolation and reproducibility |
+| Orchestration | Kubernetes | Scalability and resilience |
 
-## Execução Local com Docker Compose
+## Running Locally with Docker Compose
 
 ```bash
-# 1. Copiar variáveis de ambiente
+# 1. Copy the environment variables template
 cp .env.example .env
-# Editar .env com uma password segura para o Redis
+# Edit .env and set a strong Redis password
 
-# 2. Construir e iniciar
+# 2. Build and start the services
 docker compose up --build -d
 
-# 3. Aceder à aplicação
+# 3. Access the application
 open http://localhost:8080
 
-# 4. Ver logs
+# 4. View backend logs
 docker compose logs -f backend
 
-# 5. Estado dos serviços
+# 5. Check the status of the services
 docker compose ps
 ```
 
-## Execução em Kubernetes (minikube)
+## Deploying to Kubernetes (minikube)
 
 ```bash
-# 1. Iniciar minikube
+# 1. Start minikube
 minikube start
 
-# 2. Construir imagens no contexto do minikube
+# 2. Build images in the minikube Docker environment
 eval $(minikube docker-env)
 docker build -t secretshare-backend:latest ./backend
 docker build -t secretshare-frontend:latest ./frontend
 
-# 3. Editar a password no Secret (k8s/01-secret.yaml) antes de aplicar!
-# Substituir "changeme_strong_password" por uma password real
+# 3. Edit the password in the Secret
+# (k8s/01-secret.yaml) before applying the manifests!
+# Replace "changeme_strong_password" with a real password
 
-# 4. Aplicar todos os manifestos por ordem
+# 4. Apply all manifests in order
 kubectl apply -f k8s/00-namespace.yaml
 kubectl apply -f k8s/01-secret.yaml
 kubectl apply -f k8s/02-configmap.yaml
@@ -70,55 +72,56 @@ kubectl apply -f k8s/04-backend.yaml
 kubectl apply -f k8s/05-frontend.yaml
 kubectl apply -f k8s/06-ingress.yaml
 
-# 5. Verificar estado dos pods
+# 5. Check pod and service status
 kubectl get pods -n secretshare
 kubectl get services -n secretshare
 
-# 6. Aceder via minikube
+# 6. Access the application through minikube
 minikube service frontend-service -n secretshare
 
-# 7. Escalar o backend manualmente
+# 7. Manually scale the backend
 kubectl scale deployment backend --replicas=4 -n secretshare
 
-# 8. Ver HPA (autoscaling)
+# 8. Check Horizontal Pod Autoscaler (HPA)
 kubectl get hpa -n secretshare
 ```
 
-## Estrutura do Repositório
+## Repository Structure
 
-```
+```text
 secret-share/
 ├── backend/
-│   ├── app.py              # API Flask
+│   ├── app.py              # Flask API
 │   ├── requirements.txt
 │   └── Dockerfile
 ├── frontend/
-│   ├── index.html          # SPA com cifragem OpenPGP no browser
-│   ├── nginx.conf          # Config nginx + security headers
+│   ├── index.html          # SPA with browser-based OpenPGP encryption
+│   ├── nginx.conf          # Nginx configuration and security headers
 │   └── Dockerfile
 ├── k8s/
-│   ├── 00-namespace.yaml
+│   ├── 00-namespace.yaml   # Kubernetes namespace
 │   ├── 01-secret.yaml      # Redis password (Kubernetes Secret)
-│   ├── 02-configmap.yaml   # Configuração não sensível
-│   ├── 03-redis.yaml       # Redis + PVC + Service
-│   ├── 04-backend.yaml     # Backend + HPA (autoscaling)
-│   ├── 05-frontend.yaml    # Frontend deployment
-│   └── 06-ingress.yaml     # Ingress nginx
+│   ├── 02-configmap.yaml   # Non-sensitive configuration
+│   ├── 03-redis.yaml       # Redis, PVC and Service
+│   ├── 04-backend.yaml     # Backend Deployment and HPA
+│   ├── 05-frontend.yaml    # Frontend Deployment
+│   └── 06-ingress.yaml     # NGINX Ingress configuration
 ├── docker-compose.yml
 ├── nginx-proxy.conf
 ├── .env.example
 └── README.md
 ```
 
-## Endpoints da API
+## API Endpoints
 
-| Método | Endpoint | Descrição |
+| Method | Endpoint | Description |
 |---|---|---|
-| GET | `/health` | Health check (Redis + app) |
-| POST | `/api/secret` | Criar segredo |
-| GET | `/api/secret/<id>` | Consultar e consumir segredo |
+| GET | `/health` | Health check for the application and Redis |
+| POST | `/api/secret` | Create a secret |
+| GET | `/api/secret/<id>` | Retrieve and consume a secret |
 
-### POST /api/secret — body JSON
+### POST `/api/secret` — JSON Request Body
+
 ```json
 {
   "ciphertext": "<OpenPGP armored string>",
@@ -127,23 +130,41 @@ secret-share/
 }
 ```
 
-## Mecanismos de Segurança
+- `ciphertext`: The encrypted secret in OpenPGP ASCII-armored format.
+- `ttl`: Time to live in seconds (86,400 seconds = 24 hours).
+- `one_time`: Whether the secret should be deleted after its first successful retrieval.
 
-- **Zero-knowledge**: cifragem AES-256 com OpenPGP.js no browser
-- **TTL automático**: Redis expira segredos sem intervenção manual
-- **Leitura única**: segredo eliminado após primeira consulta
-- **Utilizador não-root**: containers correm com `appuser`
-- **Security headers**: X-Frame-Options, CSP, X-Content-Type-Options
-- **Secrets Kubernetes**: password Redis em `kind: Secret` (base64)
-- **Rede interna**: Redis apenas acessível na rede `internal`
+## Security Mechanisms
 
-## Questões de Reflexão (resumo)
+- **Zero-knowledge architecture:** Secrets are encrypted in the browser using OpenPGP.js before transmission.
+- **Automatic TTL expiration:** Redis automatically expires secrets without requiring manual cleanup.
+- **One-time access:** Secrets are deleted after their first successful retrieval when one-time access is enabled.
+- **Non-root containers:** Containers run as the `appuser` user.
+- **Security headers:** Includes `X-Frame-Options`, Content Security Policy (CSP), and `X-Content-Type-Options`.
+- **Kubernetes Secrets:** The Redis password is stored in a Kubernetes `Secret` resource, encoded in base64.
+- **Internal network isolation:** Redis is accessible only through the internal network.
 
-1. **Stateless vs Stateful**: Frontend e Backend são stateless; Redis é stateful (dados persistidos em PVC)
-2. **Vantagens Docker**: ambiente reprodutível, isolamento, deploy consistente em qualquer máquina
-3. **Compose vs K8s**: Compose é simples para dev local; K8s adiciona HA, autoscaling, rolling updates
-4. **Config sensível**: password Redis em `.env` (Compose) e `kind: Secret` (K8s)
-5. **Servidor acede em claro?**: Não — o ciphertext é gerado no browser com OpenPGP antes do envio
-6. **Escalabilidade**: backend stateless escala horizontalmente via HPA; Redis com Redis Cluster em produção
-7. **Limitações**: Redis single-node é SPOF; sem HTTPS no lab; Secret K8s apenas base64 (usar Sealed Secrets em prod)
-8. **Inspiração no Yopass**: TTL, leitura única, zero-knowledge e self-hosting; diferença principal: stack própria (Flask+Redis vs Go+Memcached)
+## Reflection Questions — Summary
+
+1. **Stateless vs. stateful:** The frontend and backend are stateless, while Redis is stateful, with data persistence provided by a PersistentVolumeClaim (PVC).
+
+2. **Advantages of Docker:** Reproducible environments, process isolation, and consistent deployment across different machines.
+
+3. **Docker Compose vs. Kubernetes:** Compose simplifies local development, while Kubernetes provides advanced orchestration capabilities, including high availability, autoscaling, and rolling updates.
+
+4. **Sensitive configuration:** The Redis password is stored in a `.env` file for Docker Compose and in a Kubernetes `Secret` for Kubernetes deployments.
+
+5. **Can the server access the plaintext secret?** No. The secret is encrypted in the browser using OpenPGP.js before being transmitted to the backend.
+
+6. **Scalability:** The stateless backend can scale horizontally using the Horizontal Pod Autoscaler (HPA). For production environments, Redis Cluster can provide a more scalable data layer.
+
+7. **Limitations:** A single Redis instance is a single point of failure (SPOF). The lab deployment does not include HTTPS by default. Kubernetes Secrets are base64-encoded rather than encrypted by base64 itself; production deployments should use appropriate encryption at rest and secret-management solutions.
+
+8. **Inspired by Yopass:** The project follows concepts such as TTL, one-time access, zero-knowledge encryption, and self-hosting. The main difference is its custom technology stack: Flask and Redis instead of Go and Memcached.
+
+---
+
+**Project:** SecretShare  
+**Course:** Distributed Computing  
+**Academic Year:** 2025/2026  
+**Institution:** ISMAT
