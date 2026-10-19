@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="pt" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SecretShare</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Inter:wght@300..700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/openpgp@5.11.2/dist/openpgp.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<style>
+:root,[data-theme="light"]{
+  --bg:#f7f6f2;--surface:#f9f8f5;--s2:#fbfbf9;--soff:#f3f0ec;
+  --border:rgba(40,37,29,.12);--div:#dcd9d5;--text:#28251d;--muted:#7a7974;
+  --faint:#bab9b4;--primary:#01696f;--ph:#0c4e54;--phi:#cedcd8;
+  --error:#a12c7b;--success:#437a22;--shi:#d4dfcc;--warn:#964219;
+  --sh1:0 1px 2px rgba(0,0,0,.06);--sh2:0 4px 12px rgba(0,0,0,.08);
+  --r:0.5rem;--rl:0.75rem;--rxl:1rem;--rf:9999px;--tr:180ms cubic-bezier(.16,1,.3,1);
+  --mono:"JetBrains Mono",monospace;--body:"Inter",sans-serif;
+}
+[data-theme="dark"]{
+  --bg:#171614;--surface:#1c1b19;--s2:#201f1d;--soff:#22211f;
+  --border:rgba(205,204,202,.10);--div:#262523;--text:#cdccca;--muted:#797876;
+  --faint:#5a5957;--primary:#4f98a3;--ph:#227f8b;--phi:#313b3b;
+  --error:#d163a7;--success:#6daa45;--shi:#3a4435;--warn:#bb653b;
+  --sh1:0 1px 2px rgba(0,0,0,.2);--sh2:0 4px 12px rgba(0,0,0,.3);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-font-smoothing:antialiased}
+body{min-height:100dvh;font-family:var(--body);font-size:1rem;color:var(--text);background:var(--bg);display:flex;flex-direction:column}
+a,button,input,textarea,select{transition:color var(--tr),background var(--tr),border-color var(--tr),box-shadow var(--tr)}
+button{cursor:pointer;background:none;border:none;font:inherit;color:inherit}
+input,textarea,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--primary);outline-offset:3px;border-radius:4px}
+
+.header{display:flex;align-items:center;justify-content:space-between;padding:.75rem 1.5rem;
+  border-bottom:1px solid var(--div);background:var(--surface);position:sticky;top:0;z-index:100}
+.logo{display:flex;align-items:center;gap:.75rem;text-decoration:none;color:inherit}
+.logo-name{font-weight:700;font-size:1.05rem;letter-spacing:-.02em}
+.logo-badge{font-size:.7rem;padding:2px 8px;background:var(--phi);color:var(--primary);
+  border-radius:var(--rf);font-family:var(--mono);font-weight:500}
+.tbtn{width:36px;height:36px;display:flex;align-items:center;justify-content:center;
+  border-radius:var(--r);color:var(--muted)}
+.tbtn:hover{background:var(--soff);color:var(--text)}
+.lang-select{padding:.25rem .5rem;border:1px solid var(--border);border-radius:var(--r);
+  background:var(--s2);font-size:.75rem;color:var(--text);cursor:pointer}
+.lang-select:focus{outline:none;border-color:var(--primary)}
+
+main{flex:1;display:flex;align-items:center;justify-content:center;padding:2rem 1rem}
+.wrap{width:100%;max-width:560px}
+
+.tabs{display:flex;border:1px solid var(--border);border-radius:var(--rl);
+  background:var(--surface);padding:4px;gap:4px;margin-bottom:1.5rem}
+.tab{flex:1;padding:.5rem 1rem;border-radius:var(--r);font-size:.875rem;font-weight:500;
+  color:var(--muted);text-align:center;cursor:pointer}
+.tab.on{background:var(--primary);color:#fff;box-shadow:var(--sh1)}
+.tab:not(.on):hover{color:var(--text);background:var(--soff)}
+.panel{display:none}.panel.on{display:block}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rxl);
+  padding:1.5rem;box-shadow:var(--sh1)}
+.card h1{font-size:1.25rem;font-weight:700;margin-bottom:.5rem}
+.card p{font-size:.875rem;color:var(--muted);margin-bottom:1.5rem}
+
+.field{margin-bottom:1rem}
+label{display:block;font-size:.875rem;font-weight:500;margin-bottom:.375rem}
+.hint{font-weight:400;color:var(--muted)}
+textarea,input[type=text],input[type=password],select{
+  width:100%;padding:.625rem 1rem;border:1px solid var(--border);border-radius:var(--r);
+  background:var(--s2);font-size:.875rem;resize:vertical}
+textarea:focus,input:focus,select:focus{outline:none;border-color:var(--primary);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 15%,transparent)}
+textarea{min-height:110px;font-family:var(--mono);font-size:.8rem}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.chkrow{display:flex;align-items:center;gap:.75rem;cursor:pointer;padding:.625rem 1rem;
+  border:1px solid var(--border);border-radius:var(--r);background:var(--s2);user-select:none}
+.chkrow input{width:16px;height:16px;accent-color:var(--primary);cursor:pointer;flex-shrink:0}
+.chk-t{font-size:.875rem;font-weight:500}
+.chk-h{font-size:.75rem;color:var(--muted);margin-top:2px}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;
+  padding:.625rem 1.5rem;border-radius:var(--r);font-size:.875rem;font-weight:600;
+  cursor:pointer;border:none;width:100%}
+.btn-p{background:var(--primary);color:#fff}
+.btn-p:hover:not(:disabled){background:var(--ph)}
+.btn-p:disabled{opacity:.5;cursor:not-allowed}
+.btn-o{background:transparent;color:var(--text);border:1px solid var(--border)}
+.btn-o:hover{background:var(--soff)}
+
+.ok-box{margin-top:1rem;padding:1rem;background:var(--shi);
+  border:1px solid color-mix(in srgb,var(--success) 30%,transparent);border-radius:var(--rl)}
+.ok-lbl{font-size:.7rem;font-weight:700;color:var(--success);text-transform:uppercase;
+  letter-spacing:.05em;margin-bottom:.5rem}
+.ok-link{font-family:var(--mono);font-size:.75rem;word-break:break-all;line-height:1.6}
+.copy{margin-top:.625rem;padding:.375rem 1rem;width:auto;font-size:.75rem}
+
+.err-box{margin-top:1rem;padding:.875rem 1rem;
+  background:color-mix(in srgb,var(--error) 10%,transparent);
+  border:1px solid color-mix(in srgb,var(--error) 30%,transparent);
+  border-radius:var(--rl);font-size:.875rem;color:var(--error)}
+
+.warn-box{padding:.625rem 1rem;background:color-mix(in srgb,var(--warn) 10%,transparent);
+  border:1px solid color-mix(in srgb,var(--warn) 30%,transparent);border-radius:var(--r);
+  font-size:.75rem;color:var(--warn);margin-bottom:1rem;display:flex;gap:.5rem}
+.secret-out{padding:1rem;background:var(--s2);border:1px solid var(--border);
+  border-radius:var(--r);font-family:var(--mono);font-size:.8rem;white-space:pre-wrap;
+  word-break:break-all;line-height:1.7;min-height:80px}
+
+.spin{width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;
+  border-radius:50%;animation:sp .7s linear infinite;display:none}
+.spin.on{display:block}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+footer{padding:.875rem 1.5rem;text-align:center;font-size:.75rem;color:var(--faint);
+  border-top:1px solid var(--div)}
+
+.secret-actions{display:flex;gap:.5rem;margin-top:.75rem;flex-wrap:wrap}
+.qr-wrap{margin-top:1rem;padding:1rem;background:var(--s2);border:1px solid var(--border);
+  border-radius:var(--rl);display:none;flex-direction:column;align-items:center;gap:.75rem}
+.qr-wrap.on{display:flex}
+.qr-label{font-size:.75rem;color:var(--muted);font-weight:500}
+#qr-canvas{border-radius:var(--r)}
+
+@media(max-width:480px){
+  .row2{grid-template-columns:1fr}
+  .header,.wrap{padding-inline:.75rem}
+  main{padding:1.5rem .75rem}
+}
+</style>
+</head>
+<body>
+<header class="header">
+<a href="/" class="logo">
+  <img id="logo-img" src="./assets/logo-escuro.webp" alt="SecretShare logo" 
+     height="36" style="border-radius:6px; object-fit:contain">
+  <span class="logo-name">SecretShare</span>
+  <span class="logo-badge">zero-knowledge</span>
+</a>
+  <div style="display:flex;align-items:center;gap:.5rem">
+    <select class="lang-select" id="lang-select" aria-label="Language">
+      <option value="pt">🇵🇹 PT</option>
+      <option value="en">🇬🇧 EN</option>
+      <option value="es">🇪🇸 ES</option>
+      <option value="fr">🇫🇷 FR</option>
+    </select>
+    <button class="tbtn" data-tt aria-label="Theme"></button>
+  </div>
+</header>
+
+<main>
+<div class="wrap">
+  <div class="tabs">
+    <div class="tab on" data-tab="create" data-i18n="tab_create">🔒 Criar Segredo</div>
+    <div class="tab" data-tab="read" data-i18n="tab_read">🔍 Consultar Segredo</div>
+  </div>
+
+  <div class="panel on" id="p-create">
+    <div class="card">
+      <h1 data-i18n="create_title">Partilhar um segredo</h1>
+      <p data-i18n="create_desc">O segredo é cifrado no teu browser com OpenPGP antes de ser enviado. O servidor <strong>nunca vê o conteúdo em claro</strong>.</p>
+      <div class="field">
+        <label for="stxt" data-i18n="lbl_secret">Segredo <span class="hint">(texto)</span></label>
+        <textarea id="stxt" rows="5"></textarea>
+      </div>
+      <div class="field">
+        <label for="spass" data-i18n="lbl_passphrase">Passphrase extra <span class="hint">(opcional)</span></label>
+        <input type="password" id="spass">
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label for="sttl" data-i18n="lbl_ttl">Validade</label>
+          <select id="sttl">
+            <option value="3600" data-i18n-opt="ttl_1h">1 hora</option>
+            <option value="21600" data-i18n-opt="ttl_6h">6 horas</option>
+            <option value="86400" selected data-i18n-opt="ttl_24h">24 horas</option>
+            <option value="259200" data-i18n-opt="ttl_3d">3 dias</option>
+            <option value="604800" data-i18n-opt="ttl_7d">7 dias</option>
+          </select>
+        </div>
+        <div class="field" style="display:flex;flex-direction:column;justify-content:flex-end">
+          <label class="chkrow">
+            <input type="checkbox" id="sonce" checked>
+            <div>
+              <div class="chk-t" data-i18n="lbl_onetime">Leitura única</div>
+              <div class="chk-h" data-i18n="lbl_onetime_desc">Elimina após primeira leitura</div>
+            </div>
+          </label>
+        </div>
+      </div>
+      <button class="btn btn-p" id="bc">
+        <div class="spin" id="sc"></div>
+        <span id="bct" data-i18n="btn_create">Criar link seguro</span>
+      </button>
+      <div id="cres" style="display:none">
+        <div class="ok-box">
+          <div class="ok-lbl" data-i18n="lbl_link_ok">✓ Link gerado</div>
+          <div class="ok-link" id="slink"></div>
+          <button class="btn btn-o copy" id="cpbtn" data-i18n="btn_copy_link">Copiar link</button>
+        </div>
+      </div>
+      <div id="cerr" class="err-box" style="display:none"></div>
+    </div>
+  </div>
+
+  <div class="panel" id="p-read">
+    <div class="card">
+      <h1 data-i18n="read_title">Consultar segredo</h1>
+      <p data-i18n="read_desc">Cola o link ou ID do segredo. Se foi protegido com passphrase, insere-a também.</p>
+      <div class="warn-box"><span>⚠</span><span data-i18n="warn_onetime">Segredo de leitura única será eliminado permanentemente após consulta.</span></div>
+      <div class="field">
+        <label for="ridIn" data-i18n="lbl_link_id">Link ou ID do segredo</label>
+        <input type="text" id="ridIn">
+      </div>
+      <div class="field">
+        <label for="rpass" data-i18n="lbl_passphrase2">Passphrase <span class="hint">(se aplicável)</span></label>
+        <input type="password" id="rpass">
+      </div>
+      <button class="btn btn-p" id="br">
+        <div class="spin" id="sr"></div>
+        <span id="brt" data-i18n="btn_reveal">Revelar segredo</span>
+      </button>
+      <div id="rres" style="display:none;margin-top:1rem">
+        <div class="ok-lbl" style="color:var(--primary);margin-bottom:.5rem" data-i18n="lbl_decrypted">✓ Segredo decifrado</div>
+        <div class="secret-out" id="sout"></div>
+        <div class="secret-actions">
+          <button class="btn btn-o" id="copy-secret-btn" style="width:auto;padding:.375rem 1rem;font-size:.75rem" data-i18n="btn_copy_secret">📋 Copiar segredo</button>
+          <button class="btn btn-o" id="qr-toggle-btn" style="width:auto;padding:.375rem 1rem;font-size:.75rem" data-i18n="btn_qr">📱 Mostrar QR Code</button>
+        </div>
+        <div class="qr-wrap" id="qr-wrap">
+          <div class="qr-label" data-i18n="qr_label">QR Code do segredo decifrado</div>
+          <div id="qr-canvas" style="background:#fff;padding:8px;border-radius:8px"></div>
+          <div class="qr-label" id="qr-hint" style="text-align:center;max-width:200px"></div>
+        </div>
+      </div>
+      <div id="rerr" class="err-box" style="display:none"></div>
+    </div>
+  </div>
+</div>
+</main>
+
+<footer><span data-i18n="footer">SecretShare &mdash; cifrado no browser &middot; zero-knowledge &middot; open-source</span></footer>
+
+<script>
+const API = (location.hostname==="localhost"||location.hostname==="127.0.0.1")
+  ? "http://localhost:5000" : location.origin;
+
+const LANGS = {
+  pt: {
+    tab_create:"🔒 Criar Segredo", tab_read:"🔍 Consultar Segredo",
+    create_title:"Partilhar um segredo",
+    create_desc:"O segredo é cifrado no teu browser com OpenPGP antes de ser enviado. O servidor <strong>nunca vê o conteúdo em claro</strong>.",
+    lbl_secret:'Segredo <span class="hint">(texto)</span>',
+    lbl_passphrase:'Passphrase extra <span class="hint">(opcional)</span>',
+    lbl_ttl:"Validade", btn_create:"Criar link seguro",
+    lbl_link_ok:"✓ Link gerado", btn_copy_link:"Copiar link",
+    read_title:"Consultar segredo",
+    read_desc:"Cola o link ou ID do segredo. Se foi protegido com passphrase, insere-a também.",
+    warn_onetime:"Segredo de leitura única será eliminado permanentemente após consulta.",
+    lbl_link_id:"Link ou ID do segredo",
+    lbl_passphrase2:'Passphrase <span class="hint">(se aplicável)</span>',
+    btn_reveal:"Revelar segredo", lbl_decrypted:"✓ Segredo decifrado",
+    btn_copy_secret:"📋 Copiar segredo", btn_qr:"📱 Mostrar QR Code",
+    qr_label:"QR Code do segredo decifrado",
+    footer:"SecretShare — cifrado no browser · zero-knowledge · open-source",
+    ph_secret:"Escreve o teu segredo aqui…",
+    ph_passphrase:"Proteção adicional para o destinatário",
+    ph_link:"https://... ou UUID",
+    ph_rpass:"Passphrase (se definida)",
+    ttl_1h:"1 hora", ttl_6h:"6 horas", ttl_24h:"24 horas",
+    ttl_3d:"3 dias", ttl_7d:"7 dias",
+    lbl_onetime:"Leitura única",
+    lbl_onetime_desc:"Elimina após primeira leitura",
+    err_empty_secret:"Por favor insere um segredo.",
+    err_empty_id:"Insere o link ou ID.",
+    err_passphrase:"Passphrase incorreta — o segredo não foi eliminado. Tenta novamente.",
+    loading_enc:"A cifrar…", loading_dec:"A decifrar…",
+    copied:"✓ Copiado!", copy_link:"Copiar link",
+    copy_secret:"📋 Copiar segredo", qr_show:"📱 Mostrar QR Code", qr_hide:"❌ Esconder QR Code",
+    qr_hint:"📷 Aponta a câmara para ler o segredo",
+    qr_warn:"⚠ Segredo muito longo — QR pode ser difícil de ler"
+  },
+  en: {
+    tab_create:"🔒 Create Secret", tab_read:"🔍 Read Secret",
+    create_title:"Share a secret",
+    create_desc:"The secret is encrypted in your browser with OpenPGP before being sent. The server <strong>never sees the content in plain text</strong>.",
+    lbl_secret:'Secret <span class="hint">(text)</span>',
+    lbl_passphrase:'Extra passphrase <span class="hint">(optional)</span>',
+    lbl_ttl:"Expiry", btn_create:"Create secure link",
+    lbl_link_ok:"✓ Link generated", btn_copy_link:"Copy link",
+    read_title:"Read secret",
+    read_desc:"Paste the secret link or ID. If it was protected with a passphrase, enter it too.",
+    warn_onetime:"One-time secret will be permanently deleted after reading.",
+    lbl_link_id:"Secret link or ID",
+    lbl_passphrase2:'Passphrase <span class="hint">(if set)</span>',
+    btn_reveal:"Reveal secret", lbl_decrypted:"✓ Secret decrypted",
+    btn_copy_secret:"📋 Copy secret", btn_qr:"📱 Show QR Code",
+    qr_label:"QR Code of the decrypted secret",
+    footer:"SecretShare — browser-side encryption · zero-knowledge · open-source",
+    ph_secret:"Type your secret here…",
+    ph_passphrase:"Extra protection for the recipient",
+    ph_link:"https://... or UUID",
+    ph_rpass:"Passphrase (if set)",
+    ttl_1h:"1 hour", ttl_6h:"6 hours", ttl_24h:"24 hours",
+    ttl_3d:"3 days", ttl_7d:"7 days",
+    lbl_onetime:"One-time read",
+    lbl_onetime_desc:"Delete after first read",
+    err_empty_secret:"Please enter a secret.",
+    err_empty_id:"Enter the link or ID.",
+    err_passphrase:"Wrong passphrase — the secret was NOT deleted. Please try again.",
+    loading_enc:"Encrypting…", loading_dec:"Decrypting…",
+    copied:"✓ Copied!", copy_link:"Copy link",
+    copy_secret:"📋 Copy secret", qr_show:"📱 Show QR Code", qr_hide:"❌ Hide QR Code",
+    qr_hint:"📷 Point your camera to read the secret",
+    qr_warn:"⚠ Secret is too long — QR may be hard to scan"
+  },
+  es: {
+    tab_create:"🔒 Crear Secreto", tab_read:"🔍 Consultar Secreto",
+    create_title:"Compartir un secreto",
+    create_desc:"El secreto se cifra en tu navegador con OpenPGP antes de enviarse. El servidor <strong>nunca ve el contenido en claro</strong>.",
+    lbl_secret:'Secreto <span class="hint">(texto)</span>',
+    lbl_passphrase:'Frase de contraseña extra <span class="hint">(opcional)</span>',
+    lbl_ttl:"Validez", btn_create:"Crear enlace seguro",
+    lbl_link_ok:"✓ Enlace generado", btn_copy_link:"Copiar enlace",
+    read_title:"Consultar secreto",
+    read_desc:"Pega el enlace o ID del secreto. Si fue protegido con contraseña, introdúcela también.",
+    warn_onetime:"El secreto de lectura única se eliminará permanentemente tras consultarlo.",
+    lbl_link_id:"Enlace o ID del secreto",
+    lbl_passphrase2:'Contraseña <span class="hint">(si aplica)</span>',
+    btn_reveal:"Revelar secreto", lbl_decrypted:"✓ Secreto descifrado",
+    btn_copy_secret:"📋 Copiar secreto", btn_qr:"📱 Mostrar QR Code",
+    qr_label:"QR Code del secreto descifrado",
+    footer:"SecretShare — cifrado en el navegador · zero-knowledge · open-source",
+    ph_secret:"Escribe tu secreto aquí…",
+    ph_passphrase:"Protección adicional para el destinatario",
+    ph_link:"https://... o solo el UUID",
+    ph_rpass:"Contraseña (si se definió)",
+    ttl_1h:"1 hora", ttl_6h:"6 horas", ttl_24h:"24 horas",
+    ttl_3d:"3 días", ttl_7d:"7 días",
+    lbl_onetime:"Lectura única",
+    lbl_onetime_desc:"Eliminar tras primera lectura",
+    err_empty_secret:"Por favor introduce un secreto.",
+    err_empty_id:"Introduce el enlace o ID.",
+    err_passphrase:"Contraseña incorrecta — el secreto NO fue eliminado. Inténtalo de nuevo.",
+    loading_enc:"Cifrando…", loading_dec:"Descifrando…",
+    copied:"✓ Copiado!", copy_link:"Copiar enlace",
+    copy_secret:"📋 Copiar secreto", qr_show:"📱 Mostrar QR Code", qr_hide:"❌ Ocultar QR Code",
+    qr_hint:"📷 Apunta la cámara para leer el secreto",
+    qr_warn:"⚠ Secreto muy largo — el QR puede ser difícil de leer"
+  },
+  fr: {
+    tab_create:"🔒 Créer un secret", tab_read:"🔍 Consulter un secret",
+    create_title:"Partager un secret",
+    create_desc:"Le secret est chiffré dans votre navigateur avec OpenPGP avant d'être envoyé. Le serveur <strong>ne voit jamais le contenu en clair</strong>.",
+    lbl_secret:'Secret <span class="hint">(texte)</span>',
+    lbl_passphrase:'Phrase secrète supplémentaire <span class="hint">(optionnelle)</span>',
+    lbl_ttl:"Validité", btn_create:"Créer un lien sécurisé",
+    lbl_link_ok:"✓ Lien généré", btn_copy_link:"Copier le lien",
+    read_title:"Consulter un secret",
+    read_desc:"Collez le lien ou l'ID du secret. S'il est protégé par une phrase secrète, saisissez-la également.",
+    warn_onetime:"Le secret à lecture unique sera définitivement supprimé après consultation.",
+    lbl_link_id:"Lien ou ID du secret",
+    lbl_passphrase2:'Phrase secrète <span class="hint">(si applicable)</span>',
+    btn_reveal:"Révéler le secret", lbl_decrypted:"✓ Secret déchiffré",
+    btn_copy_secret:"📋 Copier le secret", btn_qr:"📱 Afficher le QR Code",
+    qr_label:"QR Code du secret déchiffré",
+    footer:"SecretShare — chiffrement côté navigateur · zero-knowledge · open-source",
+    ph_secret:"Écrivez votre secret ici…",
+    ph_passphrase:"Protection supplémentaire pour le destinataire",
+    ph_link:"https://... ou juste l'UUID",
+    ph_rpass:"Phrase secrète (si définie)",
+    ttl_1h:"1 heure", ttl_6h:"6 heures", ttl_24h:"24 heures",
+    ttl_3d:"3 jours", ttl_7d:"7 jours",
+    lbl_onetime:"Lecture unique",
+    lbl_onetime_desc:"Supprimer après la première lecture",
+    err_empty_secret:"Veuillez entrer un secret.",
+    err_empty_id:"Entrez le lien ou l'ID.",
+    err_passphrase:"Phrase secrète incorrecte — le secret n'a PAS été supprimé. Réessayez.",
+    loading_enc:"Chiffrement…", loading_dec:"Déchiffrement…",
+    copied:"✓ Copié !", copy_link:"Copier le lien",
+    copy_secret:"📋 Copier le secret", qr_show:"📱 Afficher le QR Code", qr_hide:"❌ Masquer le QR Code",
+    qr_hint:"📷 Pointez l'appareil photo pour lire le secret",
+    qr_warn:"⚠ Secret trop long — le QR peut être difficile à scanner"
+  }
+};
+
+let currentLang = (navigator.language || "pt").slice(0,2);
+if(!LANGS[currentLang]) currentLang = "pt";
+
+function t(key){
+  return (LANGS[currentLang] || LANGS["pt"])[key] || key;
+}
+
+function applyLang(lang) {
+  currentLang = lang;
+  const L = LANGS[lang] || LANGS["pt"];
+
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    const key = el.dataset.i18n;
+    if (L[key] !== undefined) el.innerHTML = L[key];
+  });
+
+  document.querySelectorAll("[data-i18n-opt]").forEach(el => {
+    const key = el.dataset.i18nOpt;
+    if (L[key] !== undefined) el.textContent = L[key];
+  });
+
+  const setph = (id, key) => {
+    const el = document.getElementById(id);
+    if (el && L[key]) el.placeholder = L[key];
+  };
+
+  setph("stxt","ph_secret");
+  setph("spass","ph_passphrase");
+  setph("ridIn","ph_link");
+  setph("rpass","ph_rpass");
+
+  document.documentElement.lang = lang;
+  document.getElementById("lang-select").value = lang;
+
+  const cpbtn = document.getElementById("cpbtn");
+  const csbtn = document.getElementById("copy-secret-btn");
+  const qrbtn = document.getElementById("qr-toggle-btn");
+  const qrWrap = document.getElementById("qr-wrap");
+
+  if (cpbtn && !cpbtn.dataset.active) cpbtn.textContent = L.copy_link || L.btn_copy_link;
+  if (csbtn && !csbtn.dataset.active) csbtn.textContent = L.copy_secret || L.btn_copy_secret;
+  if (qrbtn && !qrbtn.dataset.active) {
+    qrbtn.textContent = (qrWrap && qrWrap.classList.contains("on")) ? L.qr_hide : L.qr_show;
+  }
+
+  const qrHint = document.getElementById("qr-hint");
+  if (qrHint && qrWrap && qrWrap.classList.contains("on")) {
+    const txt = document.getElementById("sout").textContent;
+    qrHint.textContent = txt.length > 100 ? L.qr_warn : L.qr_hint;
+  }
+
+  const bct = document.getElementById("bct");
+  const brt = document.getElementById("brt");
+  if (bct) bct.textContent = L.btn_create;
+  if (brt) brt.textContent = L.btn_reveal;
+}
+
+document.getElementById("lang-select").addEventListener("change", e => applyLang(e.target.value));
+
+(function(){
+  const btn=document.querySelector("[data-tt]"),h=document.documentElement;
+  let d=matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light";
+  h.dataset.theme=d;
+  function ico(){btn.innerHTML=d==="dark"
+    ?'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>'
+    :'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';}
+  ico();
+  btn.onclick=()=>{d=d==="dark"?"light":"dark";h.dataset.theme=d;ico();};
+})();
+
+document.querySelectorAll(".tab").forEach(tab=>{
+  tab.onclick=()=>{
+    document.querySelectorAll(".tab,.panel").forEach(x=>x.classList.remove("on"));
+    tab.classList.add("on");
+    document.getElementById("p-"+tab.dataset.tab).classList.add("on");
+    if(tab.dataset.tab==="read"){
+      const id=new URLSearchParams(location.search).get("id");
+      if(id) document.getElementById("ridIn").value=id;
+    }
+  };
+});
+
+window.addEventListener("DOMContentLoaded",()=>{
+  applyLang(currentLang);
+  const id=new URLSearchParams(location.search).get("id");
+  if(id) document.querySelector("[data-tab=read]").click();
+});
+
+async function enc(txt,pp){
+  const msg=await openpgp.createMessage({text:txt});
+  return await openpgp.encrypt({
+    message:msg,
+    passwords:[pp||"ss-default"],
+    config:{preferredSymmetricAlgorithm:openpgp.enums.symmetric.aes256}
+  });
+}
+
+async function dec(ct,pp){
+  const msg=await openpgp.readMessage({armoredMessage:ct});
+  const {data}=await openpgp.decrypt({message:msg,passwords:[pp||"ss-default"]});
+  return data;
+}
+
+function setLoad(p,on){
+  const spinEl=document.getElementById("s"+p);
+  const labelEl=document.getElementById("b"+p+"t");
+  const btnEl=document.getElementById("b"+p);
+  spinEl.classList.toggle("on",on);
+  labelEl.textContent=on ? t(p==="c"?"loading_enc":"loading_dec") : t(p==="c"?"btn_create":"btn_reveal");
+  btnEl.disabled=on;
+}
+
+function hideResult(p){
+  ["res","err"].forEach(s=>{
+    const e=document.getElementById(p+s);
+    if(e) e.style.display="none";
+  });
+}
+
+function showErr(id,m){
+  const e=document.getElementById(id);
+  e.textContent="⚠ "+m;
+  e.style.display="block";
+}
+
+document.getElementById("bc").onclick=async()=>{
+  const txt=document.getElementById("stxt").value.trim();
+  const pp=document.getElementById("spass").value;
+  const ttl=+document.getElementById("sttl").value;
+  const once=document.getElementById("sonce").checked;
+
+  if(!txt){showErr("cerr",t("err_empty_secret"));return;}
+
+  setLoad("c",true);
+  hideResult("c");
+
+  try{
+    const ct=await enc(txt,pp);
+    const r=await fetch(API+"/api/secret",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({ciphertext:ct,ttl,one_time:once})
+    });
+    const d=await r.json();
+    if(!r.ok) throw new Error(d.error);
+
+    const lnk=location.origin+location.pathname+"?id="+d.id;
+    document.getElementById("slink").textContent=lnk;
+    document.getElementById("cres").style.display="block";
+    document.getElementById("stxt").value="";
+    document.getElementById("spass").value="";
+    document.getElementById("cpbtn").textContent=t("copy_link");
+  }catch(e){
+    showErr("cerr",e.message);
+  }finally{
+    setLoad("c",false);
+  }
+};
+
+document.getElementById("br").onclick=async()=>{
+  let inp=document.getElementById("ridIn").value.trim();
+  const pp=document.getElementById("rpass").value;
+
+  if(!inp){showErr("rerr",t("err_empty_id"));return;}
+
+  let sid=inp;
+  try{sid=new URL(inp).searchParams.get("id")||inp;}catch(_){}
+
+  setLoad("r",true);
+  hideResult("r");
+
+  try{
+    const resp=await fetch(API+"/api/secret/"+sid);
+    const d=await resp.json();
+    if(!resp.ok) throw new Error(d.error);
+
+    let plain;
+    try{
+      plain=await dec(d.ciphertext,pp);
+    }catch(_){
+      showErr("rerr",t("err_passphrase"));
+      return;
+    }
+
+    if(d.one_time){
+      await fetch(API+"/api/secret/"+sid+"/confirm",{method:"DELETE"});
+    }
+
+    document.getElementById("sout").textContent=plain;
+    document.getElementById("rres").style.display="block";
+    document.getElementById("copy-secret-btn").textContent=t("copy_secret");
+    document.getElementById("qr-toggle-btn").textContent=t("qr_show");
+    document.getElementById("qr-wrap").classList.remove("on");
+  }catch(e){
+    showErr("rerr",e.message);
+  }finally{
+    setLoad("r",false);
+  }
+};
+
+document.getElementById("cpbtn").onclick=()=>{
+  navigator.clipboard.writeText(document.getElementById("slink").textContent).then(()=>{
+    const b=document.getElementById("cpbtn");
+    b.textContent=t("copied");
+    b.dataset.active="1";
+    setTimeout(()=>{
+      b.textContent=t("copy_link");
+      delete b.dataset.active;
+    },2000);
+  });
+};
+
+document.getElementById("copy-secret-btn").addEventListener("click",()=>{
+  const txt=document.getElementById("sout").textContent;
+  navigator.clipboard.writeText(txt).then(()=>{
+    const b=document.getElementById("copy-secret-btn");
+    b.textContent=t("copied");
+    b.dataset.active="1";
+    setTimeout(()=>{
+      b.textContent=t("copy_secret");
+      delete b.dataset.active;
+    },2000);
+  });
+});
+
+document.getElementById("qr-toggle-btn").addEventListener("click",()=>{
+  const wrap=document.getElementById("qr-wrap");
+  const btn=document.getElementById("qr-toggle-btn");
+  const isOn=wrap.classList.contains("on");
+
+  if(isOn){
+    wrap.classList.remove("on");
+    btn.textContent=t("qr_show");
+  }else{
+    const txt=document.getElementById("sout").textContent;
+    const container=document.getElementById("qr-canvas");
+    container.innerHTML="";
+    try{
+      new QRCode(container,{
+        text:txt,
+        width:200,
+        height:200,
+        colorDark:"#000000",
+        colorLight:"#ffffff",
+        correctLevel:QRCode.CorrectLevel.M
+      });
+      document.getElementById("qr-hint").textContent = txt.length>100 ? t("qr_warn") : t("qr_hint");
+      wrap.classList.add("on");
+      btn.textContent=t("qr_hide");
+    }catch(e){
+      document.getElementById("qr-hint").textContent="Error: "+e.message;
+      wrap.classList.add("on");
+    }
+  }
+});
+</script>
+</body>
+</html>
